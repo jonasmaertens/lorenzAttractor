@@ -2,7 +2,7 @@
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
 
 // Lorenz Attractor Params
-const dt = 0.0005;
+const dt = 0.001;
 const p = 28;
 const w = 10;
 const beta = 8 / 3;
@@ -11,11 +11,12 @@ let y0 = 0.5;
 let z0 = 10;
 
 // Client Params
-const scaleX = 16;
-const scaleY = 12;
+let scaleX = 20;
+let scaleY = scaleX * 0.7;
 const scatter = 5;
-const lineOption = 0;
+const lineOption = 1;
 const lineOptions = ['round', 'miter', 'bevel'];
+let planeOption = 0;
 
 // Color Range
 const color = d3
@@ -39,44 +40,71 @@ function init() {
     .node();
   $ = canvas.getContext('2d');
   $.globalCompositeOperation = lineOption ? 'lighter' : 'source-over';
-  $.translate(width / 2, height / 2);
+  $.translate(width / 2, planeOption ? height / 2 : height / 1.1);
   $.scale(scaleX, scaleY);
   $.lineWidth = 0.2;
   $.lineCap = lineOptions[lineOption];
   $.lineJoin = lineOptions[lineOption];
 }
 
+const originXControl = d3.select('#posX');
+const originYControl = d3.select('#posY');
+const originZControl = d3.select('#posZ');
+originXControl.on('change', (evt) => {
+  x0 = parseInt(evt.target.value, 10);
+});
+originYControl.on('change', (evt) => {
+  y0 = parseInt(evt.target.value, 10);
+});
+originZControl.on('change', (evt) => {
+  z0 = parseInt(evt.target.value, 10);
+});
 window.onresize = init;
+d3.select('#planeSelect').on('change', (evt) => {
+  planeOption = parseInt(evt.target.value, 10);
+  init();
+});
+const zoomSlider = d3.select('#zoomSlider');
+const zoomLevelNode = d3.select('#zoomLevel').node();
+zoomSlider.on('change', (evt) => {
+  scaleX = parseInt(evt.target.value, 10);
+  scaleY = scaleX * 0.7;
+  zoomLevelNode.innerHTML = scaleX;
+  init();
+});
 init();
 
 d3.select('canvas').on('mousemove', (evt) => {
   const m = d3.pointer(evt, canvas);
   x0 = (m[0] - width / 2) / scaleX;
-  y0 = (m[1] - height / 2) / scaleY;
-  z0 = 10 + (Math.random() - 0.5) * 10;
+  y0 = planeOption ? (m[1] - height / 2) / scaleY : 0.5;
+  z0 = planeOption ? 10 : -(m[1] - height + 70) / scaleY;
+  originXControl.node().value = Math.round(x0 * 10) / 10;
+  originYControl.node().value = Math.round(y0 * 10) / 10;
+  originZControl.node().value = Math.round(z0 * 10) / 10;
 });
 
-// consistent timing of animations when concurrent transitions are scheduled for fluidity
 d3.timer(() => {
-  // console.log("now")
   let x = x0 + (Math.random() - 0.5) * scatter;
   let y = y0 + (Math.random() - 0.5) * scatter;
   let z = z0 + (Math.random() - 0.5) * scatter;
-  const n = (Math.random() * 5);
-  const t1 = Math.random() * (30 / dt);
+  const n = Math.random() * 2;
+  const t1 = Math.random() * (60 / dt);
 
   const a = d3.timer((t0) => {
     for (let i = 0; i < n; i += 1) {
       $.beginPath();
-      $.moveTo(x, y);
+      $.moveTo(x, planeOption ? y : -z);
       $.strokeStyle = color(z);
       x += dt * w * (y - x);
       y += dt * (x * (p - z) - y);
       z += dt * (x * y - beta * z);
-      $.lineTo(x, y);
+      $.lineTo(x, planeOption ? y : -z);
       $.stroke();
     }
-    if (t0 > t1) { a.stop(); }
+    if (t0 > t1) {
+      a.stop();
+    }
   });
 
   $.save();
