@@ -38,11 +38,17 @@ canvas {
   width: 1em;
 }
 
-#originPos input {
+input[type=number] {
   width: 3em;
 }
 
-#zoomSlider {
+.slider {
   max-width: 8em;
-  padding: 0.8em;
+  margin-left: .5em;
+}
+
+#sliderWrapper {
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
 }
