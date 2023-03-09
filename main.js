@@ -9,18 +9,20 @@ const beta = 8 / 3;
 let x0 = 0.5;
 let y0 = 0.5;
 let z0 = 10;
+const { sin, cos, sqrt, round, PI } = Math;
 
 // Client Params
 let zoomX = 10;
-let zoomY = zoomX; //* 0.7;
+let zoomY = zoomX;
 let scatter = 5;
 let lineOption = 1;
 const lineOptions = ['round', 'miter', 'bevel'];
 let planeOption = 0;
 let speed = 2;
 let lifetime = 60;
-// const tmpn = Math.sqrt(0 + 5 ** 2 + 0 ** 2);
-const planeNorm = [1, -1, 1];
+let phi = 0;
+let theta = 0;
+let planeNorm = [cos(phi) * sin(theta), sin(phi) * sin(theta), cos(theta)];
 
 // Color Range
 const color = d3
@@ -35,10 +37,10 @@ let height;
 let $;
 
 function getCoordsOnPlane(p, n) {
-  const tmp = Math.sqrt(n[0] ** 2 + n[1] ** 2);
+  const tmp = sqrt(n[0] ** 2 + n[1] ** 2);
   let a;
   if (tmp === 0) {
-    a = [1, 0, 0];
+    a = [-1, 0, 0];
   } else {
     a = [n[1] / tmp, -n[0] / tmp, 0];
   }
@@ -63,7 +65,7 @@ function init() {
     .node();
   $ = canvas.getContext('2d');
   $.globalCompositeOperation = lineOption ? 'lighter' : 'source-over';
-  $.translate(width / 2, height / 2); //planeOption ? height / 2 : height / 1.1);
+  $.translate(width / 2, height / 2);
   $.scale(zoomX, zoomY);
   $.lineWidth = 0.2;
   $.lineCap = lineOptions[lineOption];
@@ -95,7 +97,7 @@ const zoomSlider = d3.select('#zoomSlider');
 const zoomLevelNode = d3.select('#zoomLevel').node();
 zoomSlider.on('change', (evt) => {
   zoomX = parseInt(evt.target.value, 10);
-  zoomY = zoomX * 0.7;
+  zoomY = zoomX;
   zoomLevelNode.innerHTML = zoomX;
   init();
 });
@@ -109,16 +111,29 @@ scatterSlider.on('change', (evt) => {
 const speedSlider = d3.select('#speedSlider');
 const speedLevelNode = d3.select('#speedLevel').node();
 speedSlider.on('change', (evt) => {
-  speed = parseInt(evt.target.value, 10);
+  speed = parseFloat(evt.target.value, 10);
   speedLevelNode.value = speed;
   init();
 });
 const lifetimeSlider = d3.select('#lifetimeSlider');
 const lifetimeLevelNode = d3.select('#lifetimeLevel').node();
 lifetimeSlider.on('change', (evt) => {
-  lifetime = parseInt(evt.target.value, 10);
+  lifetime = parseFloat(evt.target.value, 10);
   lifetimeLevelNode.value = lifetime;
-  init();
+});
+const thetaSlider = d3.select('#thetaSlider');
+const thetaLevelNode = d3.select('#thetaLevel').node();
+thetaSlider.on('change', (evt) => {
+  theta = (parseInt(evt.target.value, 10) / 360) * 2 * PI;
+  thetaLevelNode.innerHTML = evt.target.value;
+  planeNorm = [cos(phi) * sin(theta), sin(phi) * sin(theta), cos(theta)];
+});
+const phiSlider = d3.select('#phiSlider');
+const phiLevelNode = d3.select('#phiLevel').node();
+phiSlider.on('change', (evt) => {
+  phi = (parseInt(evt.target.value, 10) / 360) * 2 * PI;
+  phiLevelNode.innerHTML = evt.target.value;
+  planeNorm = [cos(phi) * sin(theta), sin(phi) * sin(theta), cos(theta)];
 });
 init();
 
@@ -127,9 +142,9 @@ d3.select('canvas').on('mousemove', (evt) => {
   x0 = (m[0] - width / 2) / zoomX;
   y0 = planeOption ? (m[1] - height / 2) / zoomY : 0.5;
   z0 = planeOption ? 10 : -(m[1] - height + 70) / zoomY;
-  originXControl.node().value = Math.round(x0 * 10) / 10;
-  originYControl.node().value = Math.round(y0 * 10) / 10;
-  originZControl.node().value = Math.round(z0 * 10) / 10;
+  originXControl.node().value = round(x0 * 10) / 10;
+  originYControl.node().value = round(y0 * 10) / 10;
+  originZControl.node().value = round(z0 * 10) / 10;
 });
 
 d3.timer(() => {
@@ -163,4 +178,23 @@ d3.timer(() => {
   $.fillStyle = 'rgba(0,0,0,.05)';
   $.fillRect(0, 0, width, height);
   $.restore();
+  // draw coordinate axes
+  $.beginPath();
+  $.moveTo(0, 0);
+  let tmp = getCoordsOnPlane([20, 0, 0], planeNorm);
+  $.lineTo(tmp[0], tmp[1]);
+  $.strokeStyle = 'red';
+  $.stroke();
+  $.beginPath();
+  $.moveTo(0, 0);
+  tmp = getCoordsOnPlane([0, 20, 0], planeNorm);
+  $.lineTo(tmp[0], tmp[1]);
+  $.strokeStyle = 'green';
+  $.stroke();
+  $.beginPath();
+  $.moveTo(0, 0);
+  tmp = getCoordsOnPlane([0, 0, 20], planeNorm);
+  $.lineTo(tmp[0], tmp[1]);
+  $.strokeStyle = 'blue';
+  $.stroke();
 });
