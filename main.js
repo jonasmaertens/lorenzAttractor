@@ -2,28 +2,29 @@
 import * as d3 from 'https://cdn.jsdelivr.net/npm/d3@7/+esm';
 
 // Lorenz Attractor Params
-const dt = 0.001;
+const dt = 0.0005;
 const rho = 28;
 const sigma = 10;
 const beta = 8 / 3;
 let x0 = 0.5;
 let y0 = 0.5;
 let z0 = 10;
+const zShift = 20;
+const scaleFactor = 3;
 const { sin, cos, sqrt, round, PI } = Math;
 
 // Client Params
-let zoomX = 10;
-let zoomY = zoomX;
+let zoom = 10;
 let scatter = 5;
 let lineOption = 1;
 const lineOptions = ['round', 'miter', 'bevel'];
-let planeOption = 0;
-let speed = 2;
+let speed = 3.5;
 let lifetime = 60;
 let phi = 0;
-let theta = 0;
+let theta = PI / 2;
 let planeNorm = [cos(phi) * sin(theta), sin(phi) * sin(theta), cos(theta)];
-
+let basisA;
+let basisB;
 // Color Range
 const color = d3
   .scaleLinear()
@@ -38,26 +39,25 @@ let $;
 
 function getCoordsOnPlane(p, n) {
   const tmp = sqrt(n[0] ** 2 + n[1] ** 2);
-  let a;
   if (tmp === 0) {
-    a = [-1, 0, 0];
+    basisA = [-1, 0, 0];
   } else {
-    a = [n[1] / tmp, -n[0] / tmp, 0];
+    basisA = [n[1] / tmp, -n[0] / tmp, 0];
   }
   // cross product of normal and a
-  const b = [
-    n[1] * a[2] - n[2] * a[1],
-    n[2] * a[0] - n[0] * a[2],
-    n[0] * a[1] - n[1] * a[0],
+  basisB = [
+    n[1] * basisA[2] - n[2] * basisA[1],
+    n[2] * basisA[0] - n[0] * basisA[2],
+    n[0] * basisA[1] - n[1] * basisA[0],
   ];
-  const x = p[0] * a[0] + p[1] * a[1] + p[2] * a[2];
-  const y = p[0] * b[0] + p[1] * b[1] + p[2] * b[2];
+  const x = p[0] * basisA[0] + p[1] * basisA[1] + p[2] * basisA[2];
+  const y = p[0] * basisB[0] + p[1] * basisB[1] + p[2] * basisB[2];
   return [x, y];
 }
 
 function init() {
-  width = document.documentElement.clientWidth;
-  height = document.documentElement.clientHeight;
+  width = document.documentElement.clientWidth * scaleFactor;
+  height = document.documentElement.clientHeight * scaleFactor;
   canvas = d3
     .select('canvas')
     .attr('width', width)
@@ -66,7 +66,7 @@ function init() {
   $ = canvas.getContext('2d');
   $.globalCompositeOperation = lineOption ? 'lighter' : 'source-over';
   $.translate(width / 2, height / 2);
-  $.scale(zoomX, zoomY);
+  $.scale(zoom * scaleFactor, zoom * scaleFactor);
   $.lineWidth = 0.2;
   $.lineCap = lineOptions[lineOption];
   $.lineJoin = lineOptions[lineOption];
@@ -85,10 +85,6 @@ originZControl.on('change', (evt) => {
   z0 = parseInt(evt.target.value, 10);
 });
 window.onresize = init;
-d3.select('#planeSelect').on('change', (evt) => {
-  planeOption = parseInt(evt.target.value, 10);
-  init();
-});
 d3.select('#lineSelect').on('change', (evt) => {
   lineOption = parseInt(evt.target.value, 10);
   init();
@@ -96,9 +92,8 @@ d3.select('#lineSelect').on('change', (evt) => {
 const zoomSlider = d3.select('#zoomSlider');
 const zoomLevelNode = d3.select('#zoomLevel').node();
 zoomSlider.on('change', (evt) => {
-  zoomX = parseInt(evt.target.value, 10);
-  zoomY = zoomX;
-  zoomLevelNode.innerHTML = zoomX;
+  zoom = parseInt(evt.target.value, 10);
+  zoomLevelNode.innerHTML = zoom;
   init();
 });
 const scatterSlider = d3.select('#scatterSlider');
@@ -139,9 +134,12 @@ init();
 
 d3.select('canvas').on('mousemove', (evt) => {
   const m = d3.pointer(evt, canvas);
-  x0 = (m[0] - width / 2) / zoomX;
-  y0 = planeOption ? (m[1] - height / 2) / zoomY : 0.5;
-  z0 = planeOption ? 10 : -(m[1] - height + 70) / zoomY;
+  [x0, y0, z0] = basisA.map(
+    (el, i) =>
+      ((m[0] - width / 2 / scaleFactor) * el) / zoom +
+      ((m[1] - height / 2 / scaleFactor) * basisB[i]) / zoom
+  );
+  z0 += zShift;
   originXControl.node().value = round(x0 * 10) / 10;
   originYControl.node().value = round(y0 * 10) / 10;
   originZControl.node().value = round(z0 * 10) / 10;
@@ -153,7 +151,7 @@ d3.timer(() => {
   let z = z0 + (Math.random() - 0.5) * scatter;
   const n = Math.random() * speed;
   const t1 = Math.random() * (lifetime / dt);
-  let planeCoords = getCoordsOnPlane([x, y, z], planeNorm);
+  let planeCoords = getCoordsOnPlane([x, y, z - zShift], planeNorm);
   const a = d3.timer((t0) => {
     for (let i = 0; i < n; i += 1) {
       $.beginPath();
@@ -162,7 +160,7 @@ d3.timer(() => {
       x += dt * sigma * (y - x);
       y += dt * (x * (rho - z) - y);
       z += dt * (x * y - beta * z);
-      planeCoords = getCoordsOnPlane([x, y, z], planeNorm);
+      planeCoords = getCoordsOnPlane([x, y, z - zShift], planeNorm);
       $.lineTo(planeCoords[0], planeCoords[1]);
       $.stroke();
     }
