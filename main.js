@@ -1,5 +1,6 @@
 // eslint-disable-next-line import/no-unresolved
 import * as THREE from 'three';
+// eslint-disable-next-line import/no-unresolved, import/extensions
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 
 // Lorenz Attractor Params
